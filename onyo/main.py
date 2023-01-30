@@ -236,6 +236,66 @@ def setup_parser():
     )
     cmd_fsck.set_defaults(run=commands.fsck)
     #
+    # subcommand "get"
+    #
+    cmd_get = subcmds.add_parser(
+        'get',
+        description=textwrap.dedent(commands.get.__doc__),
+        formatter_class=SubcommandHelpFormatter,
+        help='print the requested key(s) for matching assets'
+    )
+    cmd_get.set_defaults(run=commands.get)
+    cmd_get.add_argument(
+        '-d', '--depth',
+        metavar='DEPTH',
+        type=int,
+        required=False,
+        default=0,
+        help='descend at most N levels of directories below the starting-point'
+    )
+    cmd_get.add_argument(
+        '-f', '--filter',
+        metavar='FILTER',
+        nargs='*',
+        type=str,
+        default='',
+        help='filter the results to match one or more conditions'
+    )
+    cmd_get.add_argument(
+        '-H', '--machine-readable',
+        dest='machine_readable',
+        action='store_true',
+        help='print output in a machine-readable format'
+    )
+    cmd_get.add_argument(
+        '-k', '--keys',
+        metavar='KEYS',
+        nargs='*',
+        default=['type', 'make', 'model', 'serial'],
+        help='keys to return'
+    )
+    cmd_get.add_argument(
+        '-p', '--path',
+        metavar='PATH',
+        default=['.'],
+        nargs='*',
+        help='asset or directory to search through'
+    )
+    cmd_get.add_argument(
+        '-s', '--sort-ascending',
+        dest='sort_ascending',
+        action='store_true',
+        default=False,
+        help='sort output by keys in ascending order'
+    )
+    cmd_get.add_argument(
+        '-S', '--sort-descending',
+        dest='sort_descending',
+        action='store_true',
+        default=False,
+        help='sort output by keys in ascending order'
+    )
+    #
     # subcommand "history"
     #
     cmd_history = subcmds.add_parser(
@@ -632,6 +692,7 @@ def setup_parser():
         type=path,
         help='assets or directories for which to unset values'
     )
+
     return parser
 
 

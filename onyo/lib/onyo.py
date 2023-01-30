@@ -5,9 +5,11 @@ import shutil
 import string
 import subprocess
 from pathlib import Path
-from typing import Iterable, Optional, Union
+from typing import Iterable, Optional, Union, Generator, Set
 
 from ruamel.yaml import YAML, scanner  # pyre-ignore[21]
+
+from .filters import Filter
 
 logging.basicConfig()
 log = logging.getLogger('onyo')
@@ -42,6 +44,10 @@ class Repo:
             self._assets = self._get_assets()
 
         return self._assets
+
+    @property
+    def default_keys(self) -> list[str]:
+        return ['type', 'make', 'model', 'serial']
 
     @property
     def dirs(self) -> set[Path]:
@@ -1352,3 +1358,30 @@ class Repo:
             self.restore()
 
         return diff
+
+    def get(
+            self, keys: Set[str], paths: Set[Union[Path, str]], depth: int,
+            filters: list[Filter]) -> Generator:
+        """
+        Get keys from assets matching paths and filters.
+        """
+        assets = [
+            a for a in self.assets
+            if len(a.parents) - 1 <= depth and  # restrict asset path depth
+            any([a.is_relative_to(p) for p in paths])]  # filter by paths
+
+        # Filters that do not require loading an asset are applied first
+        filters.sort(key=lambda x: x.is_default, reverse=True)
+
+        # Remove assets that do not match all filters
+        for f in filters:
+            assets[:] = filter(f.match, assets)
+
+        # Obtain keys from remaining assets
+        assets = ((a, {
+            k: v
+            for k, v in (self._read_asset(a) | dict(zip(
+                self.default_keys, re.split('[_.]', a.name)))).items()
+            if k in keys}) for a in assets)
+
+        return assets
