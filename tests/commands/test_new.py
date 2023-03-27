@@ -711,7 +711,7 @@ def test_error_namescheme(repo: Repo, variant: str) -> None:
     ret = subprocess.run(['onyo', 'new', '--path', variant], capture_output=True, text=True)
     assert not ret.stdout
     assert ret.returncode == 1
-    assert "must be in the format '<type>_<make>_<model>.<serial>'" in ret.stderr
+    assert "must be formatted as '<type>_<make>_<model>.<serial>'" in ret.stderr
 
     # verify that no new assets were created and the repository state is clean
     assert len(repo.assets) == 0

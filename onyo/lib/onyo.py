@@ -663,7 +663,7 @@ class Repo:
     #
     def mkdir(self, directories: Union[Iterable[Union[Path, str]], Path, str]) -> None:
         """
-        Create ``directory``\(s). Intermediate directories will be created as
+        Create ``directory``/(s). Intermediate directories will be created as
         needed (i.e. parent and child directories can be created in one call).
 
         An empty ``.anchor`` file is added to each directory, to ensure that git
@@ -738,7 +738,7 @@ class Repo:
     #
     def mv(self, sources: Union[Iterable[Union[Path, str]], Path, str], destination: Union[Path, str], dryrun: bool = False) -> list[tuple[str, str]]:
         """
-        Move ``source``\(s) (assets or directories) to the ``destination``
+        Move ``source``/(s) (assets or directories) to the ``destination``
         directory, or rename a ``source`` directory to ``destination``.
 
         Files cannot be renamed using ``mv()``. To do so, use ``set()``.
@@ -1030,14 +1030,28 @@ class Repo:
         Returns True for valid asset names, and False if invalid.
         """
         asset = Path(asset)
+        default_values = self.get_default_values(asset)
 
-        try:
-            re.findall('(^[^._]+?)_([^._]+?)_([^._]+?)\.(.+)', asset.name)[0]
-        except (ValueError, IndexError):
-            log.info(f"'{asset.name}' must be in the format '<type>_<make>_<model>.<serial>'")
-            return False
+        if not default_values:
+            log.info(
+                f"'{asset.name}' must be formatted as "
+                f"'<type>_<make>_<model>.<serial>'")
 
-        return True
+        return True if default_values else False
+
+    @staticmethod
+    def get_default_values(
+            asset: Path) -> Union[tuple[str, str, str, str]]:
+        """Get default-key value from the asset name. This assumes a properly
+        formatted asset name, raising a ValueError if it is not."""
+        keys = re.findall(r'(^[^._]+?)_([^._]+?)_([^._]+?)\.(.+)', asset.name)
+
+        if not keys or len(keys[0]):
+            raise ValueError(
+                f"{asset.name} must be formatted as "
+                f"'<type>_<make>_<model>.<serial>'")
+
+        return keys[0]
 
     #
     # SET
@@ -1217,22 +1231,15 @@ class Repo:
 
         for asset in assets:
             # split old name into parts
-            [serial, model, make, type] = [field[::-1] for field in re.findall('(.*)\.(.*)_(.*)_(.*)', asset.name[::-1])[0]]
-            fields = name_values.keys()
+            values = dict(zip(
+                self.default_keys, self.get_default_values(asset)))
+            new_name = values | name_values
 
-            # update name fields and build new asset name
-            if "serial" in fields:
-                if name_values["serial"] == "faux":
-                    serial = faux_serial_list.pop()
-                else:
-                    serial = name_values["serial"]
-            if "model" in fields:
-                model = name_values["model"]
-            if "make" in fields:
-                make = name_values["make"]
-            if "type" in fields:
-                type = name_values["type"]
-            new_name = Path(asset.parent, f"{type}_{make}_{model}.{serial}")
+            if new_name.get('serial') == 'faux':
+                new_name['serial'] = faux_serial_list.pop()
+
+            new_name = '{type}_{make}_{model}.{serial}'.format(**new_name)
+            new_name = Path(asset.parent, new_name)
 
             # Check validity of the new asset name
             if new_name == asset.name:
@@ -1263,7 +1270,7 @@ class Repo:
     #
     def rm(self, paths: Union[Iterable[Union[Path, str]], Path, str], dryrun: bool = False) -> list[str]:
         """
-        Delete ``asset``\(s) and ``directory``\(s).
+        Delete ``asset``/(s) and ``directory``/(s).
         """
         if not isinstance(paths, (list, set)):
             paths = [paths]
@@ -1381,7 +1388,7 @@ class Repo:
         assets = ((a, {
             k: v
             for k, v in (self._read_asset(a) | dict(zip(
-                self.default_keys, re.split('[_.]', a.name)))).items()
+                self.default_keys, self.get_default_values(a)))).items()
             if k in keys}) for a in assets)
 
         return assets
