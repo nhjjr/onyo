@@ -46,10 +46,6 @@ class Repo:
         return self._assets
 
     @property
-    def default_keys(self) -> list[str]:
-        return ['type', 'make', 'model', 'serial']
-
-    @property
     def dirs(self) -> set[Path]:
         if not self._dirs:
             self._dirs = self._get_dirs()
@@ -78,6 +74,10 @@ class Repo:
     @property
     def opdir(self) -> Path:
         return self._opdir
+
+    @property
+    def pseudo_keys(self) -> list[str]:
+        return ['type', 'make', 'model', 'serial']
 
     @property
     def root(self) -> Path:
@@ -526,18 +526,21 @@ class Repo:
         Check that no asset contains any pseudo-key names.
         """
         assets_failed = {}
-        pseudo_keys = ["type", "make", "model", "serial"]
 
         for asset in self.assets:
-            violation_list = [x for x in pseudo_keys if x in self._read_asset(asset)]
+            violation_list = [
+                x for x in self.pseudo_keys if x in self._read_asset(asset)]
             if violation_list:
                 assets_failed[asset] = violation_list
 
         if assets_failed:
-            log.error(f"Pseudo keys ({', '.join(pseudo_keys)}) are reserved for asset names, and are not allowed in asset files. The following assets contain pseudo keys:\n" +
-                      self._n_join([f'{asset}: ' +
-                                    ', '.join([k for k in assets_failed[asset]])
-                                    for asset in assets_failed]))
+            log.error(
+                f"Pseudo keys ({', '.join(self.pseudo_keys)}) are reserved "
+                f"for asset names, and are not allowed in asset files. The "
+                f"following assets contain pseudo keys:\n" +
+                self._n_join([
+                    f'{asset}: ' + ', '.join([k for k in assets_failed[asset]])
+                    for asset in assets_failed]))
 
             return False
 
@@ -1035,27 +1038,24 @@ class Repo:
 
         Returns True for valid asset names, and False if invalid.
         """
-        asset = Path(asset)
-        default_values = self.get_default_values(asset)
+        try:
+            _ = self.get_pseudo_values(Path(asset))
+        except ValueError as exc:
+            log.info(exc)
+            return False
 
-        if not default_values:
-            log.info(
-                f"'{asset.name}' must be formatted as "
-                f"'<type>_<make>_<model>.<serial>'")
+        return True
 
-        return True if default_values else False
-
-    @staticmethod
-    def get_default_values(
-            asset: Path) -> Union[tuple[str, str, str, str]]:
-        """Get default-key value from the asset name. This assumes a properly
+    def get_pseudo_values(
+            self, asset: Path) -> Union[tuple[str, str, str, str]]:
+        """Get pseudo-key value from the asset name. This assumes a properly
         formatted asset name, raising a ValueError if it is not."""
         keys = re.findall(r'(^[^._]+?)_([^._]+?)_([^._]+?)\.(.+)', asset.name)
 
-        if not keys or len(keys[0]):
+        if not keys or len(keys[0]) != 4:
+            pseudo_keys = '<{0}>_<{1}>_<{2}>.<{3}>'.format(*self.pseudo_keys)
             raise ValueError(
-                f"{asset.name} must be formatted as "
-                f"'<type>_<make>_<model>.<serial>'")
+                f"{asset.name} must be formatted as '{pseudo_keys}'")
 
         return keys[0]
 
@@ -1073,8 +1073,12 @@ class Repo:
         """
         assets_to_set = self._set_sanitize(paths, depth)
 
-        content_values = dict((field, values[field]) for field in values.keys() if field not in ["type", "make", "model", "serial"])
-        name_values = dict((field, values[field]) for field in values.keys() if field in ["type", "make", "model", "serial"])
+        content_values = dict(
+            (field, values[field]) for field in values.keys()
+            if field not in self.pseudo_keys)
+        name_values = dict(
+            (field, values[field]) for field in values.keys()
+            if field in self.pseudo_keys)
 
         if name_values and not rename:
             log.error("Can't change pseudo keys without --rename.")
@@ -1239,7 +1243,7 @@ class Repo:
         for asset in assets:
             # split old name into parts
             values = dict(zip(
-                self.default_keys, self.get_default_values(asset)))
+                self.pseudo_keys, self.get_pseudo_values(asset)))
             new_name = values | name_values
 
             if new_name.get('serial') == 'faux':
@@ -1350,9 +1354,10 @@ class Repo:
         # set and unset should select assets exactly the same way
         assets_to_unset = self._set_sanitize(paths, depth)
 
-        if any([key in ["type", "make", "model", "serial"] for key in keys]):
-            log.error("Can't unset pseudo keys (name fields are required).")
-            raise ValueError("Can't unset pseudo keys (name fields are required).")
+        if any([key in self.pseudo_keys for key in keys]):
+            msg = "Can't unset pseudo keys (name fields are required)."
+            log.error(msg)
+            raise ValueError(msg)
 
         for asset in assets_to_unset:
             contents = self._read_asset(asset)
@@ -1396,7 +1401,7 @@ class Repo:
         assets = ((a, {
             k: v
             for k, v in (self._read_asset(a) | dict(zip(
-                self.default_keys, self.get_default_values(a)))).items()
+                self.pseudo_keys, self.get_pseudo_values(a)))).items()
             if k in keys}) for a in assets)
 
         return assets

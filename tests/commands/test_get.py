@@ -42,7 +42,7 @@ def test_get_all(
     """
     Test `onyo get` with a combination of arguments.
     """
-    keys = keys if keys else repo.default_keys
+    keys = keys if keys else repo.pseudo_keys
     cmd = [
         'onyo', 'get', '--filter', *filters, '--keys', *keys,
         '--path', *paths, '--depth', depth]
@@ -98,7 +98,7 @@ def test_get_filter(
     Parametrized filters contain Tuple([filters], n_assets expected to match).
     """
     filters, n_assets = filters_expected
-    keys = repo.default_keys + ['num', 'str', 'bool', 'unset']
+    keys = repo.pseudo_keys + ['num', 'str', 'bool', 'unset']
     cmd = [
         'onyo', 'get', '--filter', *filters, '--depth', '999', '--keys', *keys,
         '-H']
@@ -136,7 +136,7 @@ def test_get_filter_regex(
     Parametrized filters contain Tuple([filters], n_assets expected to match).
     """
     filters, n_assets = filters_expected
-    keys = repo.default_keys + ['num', 'str', 'bool', 'unset']
+    keys = repo.pseudo_keys + ['num', 'str', 'bool', 'unset']
     cmd = [
         'onyo', 'get', '--filter', *filters, '--depth', '999', '--keys', *keys,
         '-H']
@@ -207,7 +207,7 @@ def test_get_keys(repo: Repo, keys: list) -> None:
 
     # default keys returned if no keys were specified
     if not keys:
-        keys = repo.default_keys
+        keys = repo.pseudo_keys
 
     # Get all the key values and make sure they match
     for line in output:

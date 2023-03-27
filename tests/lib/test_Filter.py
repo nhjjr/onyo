@@ -22,7 +22,7 @@ def test_filter(filt: str) -> None:
     f = Filter(filt, repo=Repo())  # pyre-ignore[6]
     assert f.key == filt.split('=', 1)[0]
     assert f.value == filt.split('=', 1)[1]
-    assert f.is_default if filt.split('=', 1)[0] in f._default_keys \
+    assert f.is_default if filt.split('=', 1)[0] in f._pseudo_keys \
         else not f.is_default
     assert f.match(Path('laptop_make_model.1'))
     assert not f.match(Path('monitor_make_model.2'))

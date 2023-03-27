@@ -12,9 +12,9 @@ class OnyoInvalidFilterError(Exception):
     """Raise if filters are invalidly defined"""
 
 
-def asset_name_to_keys(path: Path, default_keys: list[str]) -> dict[str, str]:
+def asset_name_to_keys(path: Path, pseudo_keys: list[str]) -> dict[str, str]:
     """Convert an asset name to default key values"""
-    return dict(zip(default_keys, re.split('[_.]', path.name)))
+    return dict(zip(pseudo_keys, re.split('[_.]', path.name)))
 
 
 @dataclass
@@ -23,11 +23,11 @@ class Filter:
     repo: Repo = field(repr=False)
     key: str = field(init=False)
     value: str = field(init=False)
-    _default_keys: list[str] = field(init=False, default_factory=list)
+    _pseudo_keys: list[str] = field(init=False, default_factory=list)
 
     def __post_init__(self):
         # TODO: define default keys somewhere accessible _once_
-        self._default_keys = ['type', 'make', 'model', 'serial']
+        self._pseudo_keys = ['type', 'make', 'model', 'serial']
         self.key, self.value = self._format(self._arg)
 
     @staticmethod
@@ -40,7 +40,7 @@ class Filter:
 
     @property
     def is_default(self) -> bool:
-        return True if self.key in self._default_keys else False
+        return True if self.key in self._pseudo_keys else False
 
     @staticmethod
     def _re_match(text: str, r: str) -> bool:
@@ -56,7 +56,7 @@ class Filter:
 
         # filters checking default keys only need to access asset Path
         if self.is_default:
-            data = asset_name_to_keys(asset, self._default_keys)
+            data = asset_name_to_keys(asset, self._pseudo_keys)
             re_match = self._re_match(str(data[self.key]), self.value)
             if re_match or self.value == data[self.key]:
                 return True

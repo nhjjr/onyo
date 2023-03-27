@@ -105,7 +105,7 @@ def get(args, opdir):
         sys.exit(1)
 
     # Evaluate and format input
-    keys = eval_keys(args.keys, defaults=repo.default_keys)
+    keys = eval_keys(args.keys, defaults=repo.pseudo_keys)
     paths = eval_path(args.path, defaults={'.'})
     depth = eval_depth(args.depth, default=0)
     filters = eval_filters(
